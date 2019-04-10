@@ -1,0 +1,94 @@
+---
+title: "Harvard Course Enrollment"
+author: "Jeff Huang"
+date: "4/9/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(plyr)
+library(tidyverse)
+library(readxl)
+library(janitor)
+
+```
+
+
+```{r download, message=FALSE, echo=FALSE, warning=FALSE}
+
+
+download.file("https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_3.22.19.xlsx", "spring_19.xlsx")
+
+spring_19 <- read_xlsx("spring_19.xlsx", skip = 3) %>% 
+  clean_names()
+
+fs:::file_delete("spring_19.xlsx")
+
+download.file("https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_03.06.18.xlsx","spring_18.xlsx")
+
+spring_18 <- read_xlsx("spring_18.xlsx", skip = 3) %>% 
+  clean_names()
+
+fs:::file_delete("spring_18.xlsx")
+
+download.file("http://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_2017_03_07_final_0.xlsx", "spring_17.xlsx")
+
+spring_17 <- read_xlsx("spring_17.xlsx", skip = 3) %>% 
+  clean_names()
+
+fs:::file_delete("spring_17.xlsx")
+
+download.file("http://registrar.fas.harvard.edu/files/fas-registrar/files/course_enrollment_statistics_0.xlsx", "spring_16.xlsx")
+
+spring_16 <- read_xlsx("spring_16.xlsx") %>% 
+  clean_names() %>% 
+  rename(course_title = course, course_department = department, u_grad = hcol) %>% 
+  select(course_title, course_department, u_grad, course_id)
+
+fs:::file_delete("spring_16.xlsx")
+
+
+```
+
+
+```{r}
+
+
+
+full_data <- intersect(spring_17, spring_18, spring_19, .id = "year") %>% 
+  select(course_title, course_department, u_grad, course_id) 
+
+full_data <- intersect(full_data, spring_16, .id = "year")
+
+
+# top 10 classes 
+top_classes <- full_data %>% 
+  drop_na(year, course_department) %>% 
+  filter(course_department %in% c("GENED", "General Education")) %>% 
+  group_by(course_id) %>% 
+  summarize(total_enrollment = sum(u_grad)) %>%
+  arrange(desc(total_enrollment)) %>% 
+  top_n(10)
+
+x <- full_data %>% 
+  select(course_id, u_grad, year) %>% 
+  filter(course_id %in% top_classes$course_id) %>% 
+  group_by(course_id, year) %>% 
+  spread(key=year, value=u_grad) %>% 
+  View()
+
+
+gened_stats <- full_data %>% 
+  drop_na(year, course_department) %>% 
+  filter(course_department %in% c("GENED", "General Education")) %>% 
+  group_by(year) %>% 
+  summarize(total_enrollment = sum(u_grad), classes = n(), average_size = mean(u_grad))
+
+
+
+
+```
+
+
