@@ -8,7 +8,6 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(plyr)
 library(tidyverse)
 library(readxl)
 library(janitor)
@@ -44,47 +43,71 @@ download.file("http://registrar.fas.harvard.edu/files/fas-registrar/files/course
 
 spring_16 <- read_xlsx("spring_16.xlsx") %>% 
   clean_names() %>% 
-  rename(course_title = course, course_department = department, u_grad = hcol) %>% 
-  select(course_title, course_department, u_grad, course_id)
+  dplyr::rename(course_title = course, course_department = department, u_grad = hcol, total=total_enrollment)
 
 fs:::file_delete("spring_16.xlsx")
 
 
 ```
+```{r}
+full_courses <- bind_rows(spring_17, spring_18, spring_19, .id="year") %>%
+  drop_na(course_department) %>% 
+  mutate(ugrad_ratio = u_grad / total) %>% 
+  filter(ugrad_ratio > 0.5, u_grad > 3) 
+
+top_3 <- full_courses %>% 
+  select(course_department, course_title, course_id ,u_grad, year) %>%
+  group_by(course_department) %>% 
+  summarize(dept_totals = sum(u_grad)) %>% 
+  arrange(desc(dept_totals)) %>% 
+  top_n(3)
+
+
+top_3
+```
+
 
 
 ```{r}
 
-
-
-full_data <- intersect(spring_17, spring_18, spring_19, .id = "year") %>% 
-  select(course_title, course_department, u_grad, course_id) 
-
-full_data <- intersect(full_data, spring_16, .id = "year")
-
-
-# top 10 classes 
-top_classes <- full_data %>% 
-  drop_na(year, course_department) %>% 
-  filter(course_department %in% c("GENED", "General Education")) %>% 
-  group_by(course_id) %>% 
-  summarize(total_enrollment = sum(u_grad)) %>%
-  arrange(desc(total_enrollment)) %>% 
-  top_n(10)
-
-x <- full_data %>% 
-  select(course_id, u_grad, year) %>% 
-  filter(course_id %in% top_classes$course_id) %>% 
-  group_by(course_id, year) %>% 
-  spread(key=year, value=u_grad) %>% 
-  View()
-
-
-gened_stats <- full_data %>% 
-  drop_na(year, course_department) %>% 
-  filter(course_department %in% c("GENED", "General Education")) %>% 
-  group_by(year) %>% 
-  summarize(total_enrollment = sum(u_grad), classes = n(), average_size = mean(u_grad))
+# 
+# full_data <- bind_rows(spring_16, spring_17, spring_18, spring_19, .id="year") 
+# 
+# filtered <- full_data %>%
+#   mutate(ugrad_ratio = u_grad / total) %>% 
+#   filter(ugrad_ratio > 0.5, u_grad > 3) 
+# 
+# 
+# 
+# temp <- filtered %>% 
+#   select(course_id, u_grad, year) %>% 
+#   group_by(course_id, year) %>% 
+#   spread(key=year, value=u_grad)
+#   
+# 
+# 
+# # top 10 classes 
+# top_classes <- full_data %>% 
+#   drop_na(year, course_department) %>% 
+#   filter(course_department %in% c("GENED", "General Education")) %>% 
+#   group_by(course_id) %>% 
+#   summarize(total_enrollment = sum(u_grad)) %>%
+#   arrange(desc(total_enrollment)) %>% 
+#   top_n(10)
+# 
+# x <- full_data %>% 
+#   select(course_id, u_grad, year) %>% 
+#   filter(course_id %in% top_classes$course_id) %>% 
+#   group_by(course_id, year) %>% 
+#   spread(key=year, value=u_grad) %>% 
+#   View()
+# 
+# 
+# gened_stats <- full_data %>% 
+#   drop_na(year, course_department) %>% 
+#   filter(course_department %in% c("GENED", "General Education")) %>% 
+#   group_by(year) %>% 
+#   summarize(total_enrollment = sum(u_grad), classes = n(), average_size = mean(u_grad))
 
 
 
