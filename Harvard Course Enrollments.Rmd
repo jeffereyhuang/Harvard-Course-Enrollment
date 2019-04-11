@@ -52,24 +52,57 @@ fs:::file_delete("spring_16.xlsx")
 ```{r}
 full_courses <- bind_rows(spring_17, spring_18, spring_19, .id="year") %>%
   drop_na(course_department) %>% 
+  distinct(course_id, year, .keep_all = TRUE) %>% 
   mutate(ugrad_ratio = u_grad / total) %>% 
-  filter(ugrad_ratio > 0.5, u_grad > 3) 
+  filter(u_grad > 3) 
 
-top_3 <- full_courses %>% 
-  select(course_department, course_title, course_id ,u_grad, year) %>%
-  group_by(course_department) %>% 
+top_dept <- full_courses %>% 
+  select(course_department, u_grad, year) %>%
+  group_by(course_department, year) %>% 
   summarize(dept_totals = sum(u_grad)) %>% 
-  arrange(desc(dept_totals)) %>% 
-  top_n(3)
+  spread(key=year, value=dept_totals) %>% 
+  ungroup() %>% 
+  mutate(increase = `3` - `1`) %>% 
+  arrange(desc(increase)) %>% 
+  slice(1:3)
 
+course_change <- full_courses %>% 
+  filter(course_department %in% top_3$course_department) %>% 
+  select(course_title, course_id, u_grad, year) %>% 
+  group_by(course_id,year) %>% 
+  spread(key=year, value=u_grad) %>% 
+  ungroup() %>% 
+  mutate(increase = `3`-`1`) %>% 
+  arrange(desc(increase)) 
 
-top_3
+top_3 <- course_change %>% 
+  slice(1:3)
+
+course_change <- course_change %>% 
+  mutate(top = ifelse(course_id %in% top_3$course_id, TRUE, FALSE))
+
+  
+  
+  
 ```
 
 
 
 ```{r}
 
+ggplot(data = subset(course_change,
+                           flipped == "No"),
+             mapping = aes(x = year,
+                           y = increase))
+
+p1 <- p0 + geom_point(alpha = 0.15, color = "gray50") +
+    scale_x_log10(labels=scales::comma) 
+
+p2 <- p1 + geom_point(data = subset(county_data,
+                                    flipped == "Yes"),
+                      mapping = aes(x = pop, y = black/100,
+                                    color = partywinner16)) +
+    scale_color_manual(values = party_colors)
 # 
 # full_data <- bind_rows(spring_16, spring_17, spring_18, spring_19, .id="year") 
 # 
