@@ -42,7 +42,7 @@ fs:::file_delete("spring_17.xlsx")
 ```
 
 ```{r data parsing, include=FALSE, message=FALSE, echo=FALSE, warning=FALSE}
-# filters for undergrad majority classes with more than 3 undergrads in the course, there are sometimes multiple listing for the same course in different sections, so only keep distinct entries
+# filters for undergrad majority classes with more than 3 undergrads in the course, there are sometimes multiple listing for the same course in different sections, so only keep distinct entries. if coming back to this data in the future, I would want to look at how these trends correlate with concentration numbers, to track whether these courses are occuring because changing interests at Harvard overall, or simply courese that everyone wants to take once or twice.
 
 full_courses <- bind_rows(spring_17, spring_19, .id="year") %>%
   drop_na(course_department) %>% 
