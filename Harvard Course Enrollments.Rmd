@@ -11,6 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(janitor)
+library(ggplot2)
+library(ggthemes)
+library(ggrepel)
 
 ```
 
@@ -64,22 +67,24 @@ top_dept <- full_courses %>%
   ungroup() %>% 
   mutate(increase = `3` - `1`) %>% 
   arrange(desc(increase)) %>% 
-  slice(1:3)
+  slice(1:5)
 
 course_change <- full_courses %>% 
-  filter(course_department %in% top_3$course_department) %>% 
-  select(course_title, course_id, u_grad, year) %>% 
+  filter(course_department %in% top_dept$course_department) %>% 
+  select(course_title, course_department, course_id, u_grad, year) %>% 
   group_by(course_id,year) %>% 
   spread(key=year, value=u_grad) %>% 
   ungroup() %>% 
   mutate(increase = `3`-`1`) %>% 
-  arrange(desc(increase)) 
+  arrange(desc(increase))
 
 top_3 <- course_change %>% 
-  slice(1:3)
+  slice(1:5)
 
-course_change <- course_change %>% 
-  mutate(top = ifelse(course_id %in% top_3$course_id, TRUE, FALSE))
+course_plot <- course_change %>% 
+  mutate(top = ifelse(course_id %in% top_3$course_id, TRUE, FALSE)) %>% 
+  select(-`2`) %>% 
+  gather("year", "enrollment", `1`:`3`) 
 
   
   
@@ -90,60 +95,28 @@ course_change <- course_change %>%
 
 ```{r}
 
-ggplot(data = subset(course_change,
-                           flipped == "No"),
-             mapping = aes(x = year,
-                           y = increase))
-
-p1 <- p0 + geom_point(alpha = 0.15, color = "gray50") +
-    scale_x_log10(labels=scales::comma) 
-
-p2 <- p1 + geom_point(data = subset(county_data,
-                                    flipped == "Yes"),
-                      mapping = aes(x = pop, y = black/100,
-                                    color = partywinner16)) +
-    scale_color_manual(values = party_colors)
-# 
-# full_data <- bind_rows(spring_16, spring_17, spring_18, spring_19, .id="year") 
-# 
-# filtered <- full_data %>%
-#   mutate(ugrad_ratio = u_grad / total) %>% 
-#   filter(ugrad_ratio > 0.5, u_grad > 3) 
-# 
-# 
-# 
-# temp <- filtered %>% 
-#   select(course_id, u_grad, year) %>% 
-#   group_by(course_id, year) %>% 
-#   spread(key=year, value=u_grad)
-#   
-# 
-# 
-# # top 10 classes 
-# top_classes <- full_data %>% 
-#   drop_na(year, course_department) %>% 
-#   filter(course_department %in% c("GENED", "General Education")) %>% 
-#   group_by(course_id) %>% 
-#   summarize(total_enrollment = sum(u_grad)) %>%
-#   arrange(desc(total_enrollment)) %>% 
-#   top_n(10)
-# 
-# x <- full_data %>% 
-#   select(course_id, u_grad, year) %>% 
-#   filter(course_id %in% top_classes$course_id) %>% 
-#   group_by(course_id, year) %>% 
-#   spread(key=year, value=u_grad) %>% 
-#   View()
-# 
-# 
-# gened_stats <- full_data %>% 
-#   drop_na(year, course_department) %>% 
-#   filter(course_department %in% c("GENED", "General Education")) %>% 
-#   group_by(year) %>% 
-#   summarize(total_enrollment = sum(u_grad), classes = n(), average_size = mean(u_grad))
-
-
-
+ggplot(data = subset(course_plot, top == FALSE),
+             mapping = aes(x = year, y = enrollment)) +
+  geom_point(alpha = 0.15, color = "gray") +
+  geom_point(data = subset(course_plot, top == TRUE),
+             mapping = aes(x = year, y = enrollment, color = course_department)) +
+  geom_text_repel(data = subset(course_plot,
+                                      top == TRUE),
+                           mapping = aes(x = year,
+                                   y = enrollment,
+                                   label = course_title), size = 2) +
+  theme_set(theme_fivethirtyeight()) +
+  theme(legend.title=element_blank()) +
+  
+  labs(
+    title="Growing Enrollment of the Highest Growing Classes from the Five Highest Growing Departments",
+    subtitle="Spring 2017-2019", 
+    x="Year", 
+    y="Enrollment"
+  ) +
+  scale_x_discrete(name="Semester",
+                   labels=c("Spring 2017", "Spring 2019")) +
+  scale_y_discrete(name="Enrollment Size")
 
 ```
 
