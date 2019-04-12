@@ -2,7 +2,9 @@
 title: "Harvard Course Enrollment"
 author: "Jeff Huang"
 date: "4/9/2019"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -14,6 +16,7 @@ library(janitor)
 library(ggplot2)
 library(ggthemes)
 library(ggrepel)
+library(fivethirtyeight)
 
 ```
 
@@ -103,21 +106,26 @@ ggplot(data = subset(course_plot, top == FALSE),
                                    y = enrollment,
                                    label = course_title), size = 2) +
   
-  # labels for the different elements
+  # theme adjustment 
+  
+  scale_color_fivethirtyeight() +
+  theme_fivethirtyeight() +
+  theme(legend.title=element_blank(), 
+        legend.position="top") + 
+  
+  # labels for the different elements, overriding default no axis label settings
   
   labs(
     title="Growing Enrollment of the Highest Growing Classes ",
     subtitle="Five Highest Growing Departments from Spring 2017-2019", 
-    x="Year", 
-    y="Enrollment"
+    caption="Source: Harvard Registrar"
   ) +
-  scale_x_discrete(name="Semester",
-                   labels=c("Spring 2017", "Spring 2019")) +
+  scale_x_discrete(labels=c("Spring 2017", "Spring 2019")) +
+  theme(axis.title = element_text()) + 
+  xlab("Semester") +
+  ylab("Enrollment")
   
-  # theme adjustment 
   
-  theme_set(theme_fivethirtyeight()) +
-  theme(legend.title=element_blank())
 
 ```
 
