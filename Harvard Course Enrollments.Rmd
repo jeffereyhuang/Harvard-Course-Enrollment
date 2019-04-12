@@ -18,8 +18,8 @@ library(ggrepel)
 ```
 
 
-```{r download, message=FALSE, echo=FALSE, warning=FALSE}
-
+```{r download, include = FALSE, message=FALSE, echo=FALSE, warning=FALSE}
+# file download process — it was difficult to read_xlsx directly from the url, so the easiest way for me to download was by storing it in local directory and reading from there, and then deleting. clean_nanmes() helped with standardizing the naming of the columns
 
 download.file("https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_3.22.19.xlsx", "spring_19.xlsx")
 
@@ -28,13 +28,6 @@ spring_19 <- read_xlsx("spring_19.xlsx", skip = 3) %>%
 
 fs:::file_delete("spring_19.xlsx")
 
-download.file("https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_03.06.18.xlsx","spring_18.xlsx")
-
-spring_18 <- read_xlsx("spring_18.xlsx", skip = 3) %>% 
-  clean_names()
-
-fs:::file_delete("spring_18.xlsx")
-
 download.file("http://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_2017_03_07_final_0.xlsx", "spring_17.xlsx")
 
 spring_17 <- read_xlsx("spring_17.xlsx", skip = 3) %>% 
@@ -42,22 +35,19 @@ spring_17 <- read_xlsx("spring_17.xlsx", skip = 3) %>%
 
 fs:::file_delete("spring_17.xlsx")
 
-download.file("http://registrar.fas.harvard.edu/files/fas-registrar/files/course_enrollment_statistics_0.xlsx", "spring_16.xlsx")
-
-spring_16 <- read_xlsx("spring_16.xlsx") %>% 
-  clean_names() %>% 
-  dplyr::rename(course_title = course, course_department = department, u_grad = hcol, total=total_enrollment)
-
-fs:::file_delete("spring_16.xlsx")
-
 
 ```
-```{r}
-full_courses <- bind_rows(spring_17, spring_18, spring_19, .id="year") %>%
+
+```{r data parsing, include=FALSE, message=FALSE, echo=FALSE, warning=FALSE}
+# filters for undergrad majority classes with more than 3 undergrads in the course, there are sometimes multiple listing for the same course in different sections, so only keep distinct entries
+
+full_courses <- bind_rows(spring_17, spring_19, .id="year") %>%
   drop_na(course_department) %>% 
   distinct(course_id, year, .keep_all = TRUE) %>% 
   mutate(ugrad_ratio = u_grad / total) %>% 
   filter(u_grad > 3) 
+
+# grabs the five departments with the highest difference between 2019 and 2017 total enrollment in undergrad courses. created a column to easily sort and select entries
 
 top_dept <- full_courses %>% 
   select(course_department, u_grad, year) %>%
@@ -65,9 +55,11 @@ top_dept <- full_courses %>%
   summarize(dept_totals = sum(u_grad)) %>% 
   spread(key=year, value=dept_totals) %>% 
   ungroup() %>% 
-  mutate(increase = `3` - `1`) %>% 
+  mutate(increase = `2` - `1`) %>% 
   arrange(desc(increase)) %>% 
   slice(1:5)
+
+# select only courses from these departments, and also create a column to display the differences between 2019 and 2017 to easily select entries
 
 course_change <- full_courses %>% 
   filter(course_department %in% top_dept$course_department) %>% 
@@ -75,16 +67,19 @@ course_change <- full_courses %>%
   group_by(course_id,year) %>% 
   spread(key=year, value=u_grad) %>% 
   ungroup() %>% 
-  mutate(increase = `3`-`1`) %>% 
+  mutate(increase = `2`-`1`) %>% 
   arrange(desc(increase))
 
-top_3 <- course_change %>% 
+# select the top courses to select from the overall list for coloring purposes
+
+top_5 <- course_change %>% 
   slice(1:5)
 
+# create a T-F variable to then filter by for dislpay purposes
+
 course_plot <- course_change %>% 
-  mutate(top = ifelse(course_id %in% top_3$course_id, TRUE, FALSE)) %>% 
-  select(-`2`) %>% 
-  gather("year", "enrollment", `1`:`3`) 
+  mutate(top = ifelse(course_id %in% top_5$course_id, TRUE, FALSE)) %>% 
+  gather("year", "enrollment", `1`:`2`) 
 
   
   
@@ -93,11 +88,13 @@ course_plot <- course_change %>%
 
 
 
-```{r}
+```{r graphic, message=FALSE, echo=FALSE, warning=FALSE}
+# plot data with first the gray subset of data, then the color subset of data. geom_text_repel labels the colored subset of data for comparison purposes
 
 ggplot(data = subset(course_plot, top == FALSE),
              mapping = aes(x = year, y = enrollment)) +
   geom_point(alpha = 0.15, color = "gray") +
+  
   geom_point(data = subset(course_plot, top == TRUE),
              mapping = aes(x = year, y = enrollment, color = course_department)) +
   geom_text_repel(data = subset(course_plot,
@@ -105,18 +102,22 @@ ggplot(data = subset(course_plot, top == FALSE),
                            mapping = aes(x = year,
                                    y = enrollment,
                                    label = course_title), size = 2) +
-  theme_set(theme_fivethirtyeight()) +
-  theme(legend.title=element_blank()) +
+  
+  # labels for the different elements
   
   labs(
-    title="Growing Enrollment of the Highest Growing Classes from the Five Highest Growing Departments",
-    subtitle="Spring 2017-2019", 
+    title="Growing Enrollment of the Highest Growing Classes ",
+    subtitle="Five Highest Growing Departments from Spring 2017-2019", 
     x="Year", 
     y="Enrollment"
   ) +
   scale_x_discrete(name="Semester",
                    labels=c("Spring 2017", "Spring 2019")) +
-  scale_y_discrete(name="Enrollment Size")
+  
+  # theme adjustment 
+  
+  theme_set(theme_fivethirtyeight()) +
+  theme(legend.title=element_blank())
 
 ```
 
